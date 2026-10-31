@@ -7,7 +7,7 @@ A small React app for canvassing the Sarpanch election in Kammapalle (Part 274, 
 ## Features
 
 - Enter 2–8 candidates. Names can be changed later without losing marks.
-- Add or delete candidates. Deleting asks for confirmation, clears only that candidate's marks, and flags affected groups for re-submission.
+- Add or delete candidates. Deleting asks for confirmation, clears only that candidate's marks, and flags affected groups for re-submission. **Delete all candidates** removes every candidate at once (after confirmation), clears their marks and resets all groups to not submitted.
 - Voters split into three working groups:
   - `1-Guttakindavooru` (52)
   - `2-Kammapalle HW` (126)

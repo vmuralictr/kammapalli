@@ -5,7 +5,7 @@ import { useDialogs } from './Dialogs'
 /** First palette colour not already taken by another row. */
 const nextFreeColor = (taken) => COLORS.find((c) => !taken.includes(c)) || COLORS[taken.length % COLORS.length]
 
-export default function CandidateSetup({ candidates, marks, onSave, onDelete, onColor }) {
+export default function CandidateSetup({ candidates, marks, onSave, onDelete, onDeleteAll, onColor }) {
   const fromSaved = () =>
     candidates.length
       ? candidates.map((c) => ({ name: c.name, color: c.color }))
@@ -19,6 +19,7 @@ export default function CandidateSetup({ candidates, marks, onSave, onDelete, on
   const savedKey = candidates.map((c) => `${c.id}|${c.name}`).join(',')
   useEffect(() => {
     if (candidates.length) setRows(candidates.map((c) => ({ name: c.name, color: c.color })))
+    else setRows([0, 1, 2].map((i) => ({ name: '', color: COLORS[i] })))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedKey])
 
@@ -76,6 +77,23 @@ export default function CandidateSetup({ candidates, marks, onSave, onDelete, on
     onDelete(saved.id)
     setMsg('')
     toast(`${saved.name} deleted.${votes ? ` ${votes} mark(s) cleared.` : ''}`)
+  }
+
+  const removeAll = async () => {
+    const ids = new Set(candidates.map((c) => c.id))
+    const votes = Object.values(marks).filter((m) => ids.has(m)).length
+    const ok = await ask({
+      title: 'Delete all candidates?',
+      body:
+        `This deletes all ${candidates.length} candidates` +
+        (votes ? ` and clears the ${votes} voter mark(s) given to them` : '') +
+        '. All groups will go back to "Not submitted". Undecided / Won\'t vote marks and voter moves are kept. This cannot be undone.',
+      yes: 'Delete all',
+    })
+    if (!ok) return
+    onDeleteAll()
+    setMsg('')
+    toast(`All candidates deleted.${votes ? ` ${votes} mark(s) cleared.` : ''}`)
   }
 
   const unsaved =
@@ -142,6 +160,11 @@ export default function CandidateSetup({ candidates, marks, onSave, onDelete, on
           Save candidates
         </button>
         {rows.length < MAX_CANDIDATES && <button onClick={addRow}>+ Add candidate</button>}
+        {candidates.length > 0 && (
+          <button id="deleteAll" className="danger-btn" onClick={removeAll}>
+            Delete all candidates
+          </button>
+        )}
         <span className="sub">{msg || (unsaved && candidates.length ? 'You have unsaved changes.' : '')}</span>
       </div>
       <p className="sub" style={{ margin: '10px 0 0' }}>Tap the coloured square to change a candidate's colour.</p>

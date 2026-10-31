@@ -114,6 +114,19 @@ export function useTracker() {
     })
   }, [])
 
+  /**
+   * Remove every candidate. Marks for candidates are cleared (Undecided / Won't vote
+   * marks and voter moves are kept) and all groups go back to "Not submitted".
+   */
+  const deleteAllCandidates = useCallback(() => {
+    setState((s) => {
+      const specialIds = new Set(SPECIAL.map((x) => x.id))
+      const marks = {}
+      for (const [k, v] of Object.entries(s.marks)) if (specialIds.has(v)) marks[k] = v
+      return { ...s, candidates: [], marks, submitted: {} }
+    })
+  }, [])
+
   /** Change a saved candidate's colour straight away. */
   const setCandidateColor = useCallback((id, color) => {
     setState((s) => ({ ...s, candidates: s.candidates.map((c) => (c.id === id ? { ...c, color } : c)) }))
@@ -193,6 +206,7 @@ export function useTracker() {
     state,
     setCandidates,
     deleteCandidate,
+    deleteAllCandidates,
     setCandidateColor,
     setCurrent,
     markVoter,

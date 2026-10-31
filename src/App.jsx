@@ -121,6 +121,7 @@ export default function App() {
           marks={state.marks}
           onSave={t.setCandidates}
           onDelete={t.deleteCandidate}
+          onDeleteAll={t.deleteAllCandidates}
           onColor={t.setCandidateColor}
         />
         <GroupPicker state={state} onPick={pickGroup} />
