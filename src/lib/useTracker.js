@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { GROUPS, SPECIAL, VOTERS } from './constants'
+import { COLORS, GROUPS, SPECIAL, VOTERS } from './constants'
 import { groupOf } from './tally'
 
 const STORAGE_KEY = 'sarpanch-tracker-274'
@@ -12,11 +12,22 @@ const EMPTY = {
   current: GROUPS[0],
 }
 
+/** Give every candidate a colour (older saves and imports may not have one). */
+function withColors(candidates) {
+  const used = new Set(candidates.map((c) => c.color).filter(Boolean))
+  return candidates.map((c) => {
+    if (c.color) return c
+    const color = COLORS.find((x) => !used.has(x)) || COLORS[0]
+    used.add(color)
+    return { ...c, color }
+  })
+}
+
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')
     if (saved && Array.isArray(saved.candidates)) {
-      const s = { ...EMPTY, ...saved }
+      const s = { ...EMPTY, ...saved, candidates: withColors(saved.candidates) }
       if (!GROUPS.includes(s.current)) s.current = GROUPS[0]
       return s
     }
@@ -46,11 +57,28 @@ export function useTracker() {
     }
   }, [state])
 
-  /** Save candidate names. Returns how many marks were cleared for removed candidates. */
+  /**
+   * Save candidates from the setup form: names[i] and optional colors[i].
+   * Returns how many marks were cleared for removed candidates.
+   */
   const setCandidates = useCallback(
-    (names) => {
+    (names, colors = []) => {
       const s = state
-      const candidates = names.map((name, i) => ({ id: `c${i + 1}`, name }))
+      // Keep existing ids by position so marks stay with the right candidate; new rows get fresh ids.
+      const used = new Set(s.candidates.map((c) => c.id))
+      let next = 1
+      const freshId = () => {
+        while (used.has(`c${next}`)) next++
+        used.add(`c${next}`)
+        return `c${next}`
+      }
+      const candidates = withColors(
+        names.map((name, i) => ({
+          id: s.candidates[i]?.id || freshId(),
+          name,
+          color: colors[i] || s.candidates[i]?.color,
+        })),
+      )
       const valid = new Set([...candidates.map((c) => c.id), ...SPECIAL.map((x) => x.id)])
       const marks = {}
       let dropped = 0
@@ -65,6 +93,31 @@ export function useTracker() {
     },
     [state],
   )
+
+  /** Remove one candidate, clear the marks given to them and flag affected groups for re-submission. */
+  const deleteCandidate = useCallback((id) => {
+    setState((s) => {
+      const marks = { ...s.marks }
+      const touched = new Set()
+      for (const v of VOTERS) {
+        if (marks[v.epicNo] === id) {
+          delete marks[v.epicNo]
+          touched.add(groupOf(v, s.moves))
+        }
+      }
+      return {
+        ...s,
+        candidates: s.candidates.filter((c) => c.id !== id),
+        marks,
+        submitted: staleIfDone(s.submitted, [...touched]),
+      }
+    })
+  }, [])
+
+  /** Change a saved candidate's colour straight away. */
+  const setCandidateColor = useCallback((id, color) => {
+    setState((s) => ({ ...s, candidates: s.candidates.map((c) => (c.id === id ? { ...c, color } : c)) }))
+  }, [])
 
   const setCurrent = useCallback((group) => setState((s) => ({ ...s, current: group })), [])
 
@@ -129,7 +182,7 @@ export function useTracker() {
     ;(o.marks || []).forEach((m) => (marks[m.epicNo] = m.vote))
     setState((s) => ({
       ...s,
-      candidates: o.candidates || [],
+      candidates: withColors(o.candidates || []),
       submitted: o.submitted || {},
       moves: o.moves || {},
       marks,
@@ -139,6 +192,8 @@ export function useTracker() {
   return {
     state,
     setCandidates,
+    deleteCandidate,
+    setCandidateColor,
     setCurrent,
     markVoter,
     moveVoter,

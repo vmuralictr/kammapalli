@@ -1,4 +1,4 @@
-import { COLORS, SPECIAL, VOTERS } from './constants'
+import { SPECIAL, VOTERS } from './constants'
 
 /** The group a voter currently belongs to (after any moves). */
 export const groupOf = (voter, moves) => moves[voter.epicNo] || voter.homeGroup
@@ -29,7 +29,7 @@ export function tally(voters, candidates, marks) {
 export function analyse(voters, candidates, marks) {
   const { counts, unmarked } = tally(voters, candidates, marks)
   const ranked = candidates
-    .map((c, i) => ({ ...c, votes: counts[c.id], color: COLORS[i] }))
+    .map((c) => ({ ...c, votes: counts[c.id] }))
     .sort((a, b) => b.votes - a.votes)
   const counted = ranked.reduce((s, c) => s + c.votes, 0)
   const top = ranked[0]

@@ -1,25 +1,73 @@
 import { useMemo, useState } from 'react'
-import { COLORS, GROUPS, SPECIAL } from '../lib/constants'
+import { GROUPS, SPECIAL, SPECIAL_COLORS } from '../lib/constants'
 import { groupOf, tally, votersInGroup } from '../lib/tally'
+
+/** Clickable column header that shows the current sort direction. */
+function SortHeader({ label, col, sort, onSort, className }) {
+  const active = sort.key === col
+  const arrow = active ? (sort.dir === 'asc' ? '▲' : '▼') : '↕'
+  return (
+    <th className={className} aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <button className={`sort-btn ${active ? 'active' : ''}`} data-sort={col} onClick={() => onSort(col)}>
+        {label} <span className="arrow">{arrow}</span>
+      </button>
+    </th>
+  )
+}
 
 export default function VoterTable({ state, onMark, onMoveRequest }) {
   const [query, setQuery] = useState('')
   const [show, setShow] = useState('all')
+  const [sort, setSort] = useState({ key: 'n', dir: 'asc' })
   const { candidates, marks, moves, current } = state
 
   const groupVoters = useMemo(() => votersInGroup(current, moves), [current, moves])
   const { counts } = tally(groupVoters, candidates, marks)
 
+  const colorOf = (id) => candidates.find((c) => c.id === id)?.color || SPECIAL_COLORS[id]
+
+  // "Will vote for" order: candidates as listed, then Undecided, Won't vote, then not marked.
+  const voteRank = useMemo(() => {
+    const r = {}
+    candidates.forEach((c, i) => (r[c.id] = i))
+    SPECIAL.forEach((s, i) => (r[s.id] = candidates.length + i))
+    return r
+  }, [candidates])
+  const UNMARKED_RANK = candidates.length + SPECIAL.length
+
+  const cycleSort = (key) =>
+    setSort((s) => (s.key !== key ? { key, dir: 'asc' } : s.dir === 'asc' ? { key, dir: 'desc' } : { key: 'n', dir: 'asc' }))
+
   const q = query.trim().toLowerCase()
-  const rows = groupVoters
-    .map((v, i) => ({ v, n: i + 1 }))
-    .filter(({ v }) => {
-      const m = marks[v.epicNo]
-      if (show === 'unmarked' && m) return false
-      if (show === 'marked' && !m) return false
-      if (q && !`${v.name} ${v.relativeName} ${v.epicNo} ${v.houseNo}`.toLowerCase().includes(q)) return false
-      return true
+  const rows = useMemo(() => {
+    const list = groupVoters
+      .map((v, i) => ({ v, n: i + 1 }))
+      .filter(({ v }) => {
+        const m = marks[v.epicNo]
+        if (show === 'unmarked' && m) return false
+        if (show === 'marked' && !m) return false
+        if (q && !`${v.name} ${v.relativeName} ${v.epicNo} ${v.houseNo}`.toLowerCase().includes(q)) return false
+        return true
+      })
+    const key = {
+      n: ({ n }) => n,
+      name: ({ v }) => v.name.toLowerCase(),
+      relative: ({ v }) => v.relativeName.toLowerCase(),
+      age: ({ v }) => v.age,
+      vote: ({ v }) => voteRank[marks[v.epicNo]] ?? UNMARKED_RANK,
+    }[sort.key]
+    const dir = sort.dir === 'asc' ? 1 : -1
+    // Stable sort: ties keep group order (#).
+    return list.sort((a, b) => {
+      const ka = key(a)
+      const kb = key(b)
+      if (ka < kb) return -dir
+      if (ka > kb) return dir
+      return a.n - b.n
     })
+  }, [groupVoters, marks, show, q, sort, voteRank, UNMARKED_RANK])
+
+  const headerProps = { sort, onSort: cycleSort }
 
   return (
     <section className="card" id="voterCard">
@@ -46,9 +94,9 @@ export default function VoterTable({ state, onMark, onMoveRequest }) {
       </div>
 
       <div className="stats">
-        {candidates.map((c, i) => (
-          <span className="stat" key={c.id}>
-            <span className="chip" style={{ background: COLORS[i] }} />
+        {candidates.map((c) => (
+          <span className="stat cand-stat" key={c.id} style={{ '--cand': c.color }}>
+            <span className="chip" style={{ background: c.color }} />
             {c.name}: <b>{counts[c.id]}</b>
           </span>
         ))}
@@ -57,18 +105,23 @@ export default function VoterTable({ state, onMark, onMoveRequest }) {
             {s.name}: <b>{counts[s.id]}</b>
           </span>
         ))}
+        {sort.key !== 'n' && (
+          <button className="link-btn" onClick={() => setSort({ key: 'n', dir: 'asc' })}>
+            Clear sort
+          </button>
+        )}
       </div>
 
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>#</th>
-              <th>Voter</th>
-              <th>Father / Husband name</th>
+              <SortHeader label="#" col="n" {...headerProps} />
+              <SortHeader label="Voter" col="name" {...headerProps} />
+              <SortHeader label="Father / Husband name" col="relative" {...headerProps} />
               <th>House</th>
-              <th>Age / Gender</th>
-              <th>Will vote for</th>
+              <SortHeader label="Age / Gender" col="age" {...headerProps} />
+              <SortHeader label="Will vote for" col="vote" {...headerProps} />
               <th>Move to group</th>
             </tr>
           </thead>
@@ -83,8 +136,9 @@ export default function VoterTable({ state, onMark, onMoveRequest }) {
             {rows.map(({ v, n }) => {
               const m = marks[v.epicNo] || ''
               const g = groupOf(v, moves)
+              const color = m ? colorOf(m) : null
               return (
-                <tr key={v.epicNo} className={m ? 'marked' : ''}>
+                <tr key={v.epicNo} className={m ? 'marked' : ''} style={color ? { '--cand': color } : undefined}>
                   <td className="n">
                     <b>{n}</b>
                     <div className="sub">Roll {v.serialNo}</div>
@@ -104,7 +158,7 @@ export default function VoterTable({ state, onMark, onMoveRequest }) {
                   </td>
                   <td className="vote">
                     <select
-                      className="vt"
+                      className={`vt ${m ? 'has-vote' : ''}`}
                       value={m}
                       disabled={!candidates.length}
                       onChange={(e) => onMark(v.epicNo, e.target.value)}
@@ -114,7 +168,7 @@ export default function VoterTable({ state, onMark, onMoveRequest }) {
                           <option value="">— Not marked —</option>
                           {candidates.map((c) => (
                             <option key={c.id} value={c.id}>
-                              {c.name}
+                              ● {c.name}
                             </option>
                           ))}
                           {SPECIAL.map((s) => (

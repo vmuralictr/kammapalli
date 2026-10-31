@@ -6,7 +6,8 @@ A small React app for canvassing the Sarpanch election in Kammapalle (Part 274, 
 
 ## Features
 
-- Enter 2–8 candidates (names can be changed later without losing marks).
+- Enter 2–8 candidates. Names can be changed later without losing marks.
+- Add or delete candidates. Deleting asks for confirmation, clears only that candidate's marks, and flags affected groups for re-submission.
 - Voters split into three working groups:
   - `1-Guttakindavooru` (52)
   - `2-Kammapalle HW` (126)
@@ -14,6 +15,8 @@ A small React app for canvassing the Sarpanch election in Kammapalle (Part 274, 
 - Per-group numbering from 1, with the original roll serial shown alongside.
 - Each row shows the voter, father/husband name, house number, age/gender, a vote dropdown, and a "move to group" dropdown.
 - Mark each voter as a candidate, **Undecided** or **Won't vote / away**.
+- Each candidate has their own colour (changeable with the colour square). Vote dropdowns, rows, counts and result bars use it.
+- Sortable columns: #, Voter, Father/Husband name, Age and **Will vote for**. Click once for ascending, again for descending, a third time to reset.
 - **Submit** each group to see that group's leader, vote split and margin. The app also says whether the lead is safe against undecided and unmarked voters.
 - After all three groups are submitted, **See final result** shows the projected Sarpanch and a group-wise table.
 - Move voters between groups. Each move asks for confirmation, can be undone from the toast, and can be reverted individually or all at once from the "Moved voters" panel.

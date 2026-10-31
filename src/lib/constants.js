@@ -2,7 +2,11 @@ import rollData from '../data/voters.json'
 
 export const ROLL = rollData.roll
 
-export const COLORS = ['#2f6fb3', '#c2410c', '#15803d', '#7e22ce', '#b91c1c', '#0e7490', '#a16207', '#be185d']
+// Default candidate colours: distinct hues, readable on light and dark backgrounds.
+export const COLORS = ['#2563eb', '#ea580c', '#16a34a', '#9333ea', '#dc2626', '#0891b2', '#ca8a04', '#db2777']
+
+// Colours for the non-candidate choices.
+export const SPECIAL_COLORS = { undecided: '#64748b', novote: '#94a3b8' }
 
 // Non-candidate choices a voter can be marked with.
 export const SPECIAL = [

@@ -116,7 +116,13 @@ export default function App() {
       </header>
 
       <main>
-        <CandidateSetup candidates={state.candidates} onSave={t.setCandidates} />
+        <CandidateSetup
+          candidates={state.candidates}
+          marks={state.marks}
+          onSave={t.setCandidates}
+          onDelete={t.deleteCandidate}
+          onColor={t.setCandidateColor}
+        />
         <GroupPicker state={state} onPick={pickGroup} />
 
         {showGroupResult && state.submitted[state.current] && (
