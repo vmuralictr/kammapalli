@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { GROUPS, SPECIAL, SPECIAL_COLORS } from '../lib/constants'
-import { groupOf, tally, votersInGroup } from '../lib/tally'
+import { SPECIAL, SPECIAL_COLORS } from '../lib/constants'
+import { tally, votersInGroup } from '../lib/tally'
 
 /** Clickable column header that shows the current sort direction. */
 function SortHeader({ label, col, sort, onSort, className }) {
@@ -15,7 +15,7 @@ function SortHeader({ label, col, sort, onSort, className }) {
   )
 }
 
-export default function VoterTable({ state, onMark, onMoveRequest }) {
+export default function VoterTable({ state, onMark, onManage }) {
   const [query, setQuery] = useState('')
   const [show, setShow] = useState('all')
   const [sort, setSort] = useState({ key: 'n', dir: 'asc' })
@@ -71,7 +71,12 @@ export default function VoterTable({ state, onMark, onMoveRequest }) {
 
   return (
     <section className="card" id="voterCard">
-      <h2>Step 3 · Mark each voter – {current}</h2>
+      <div className="spread" style={{ marginBottom: 12 }}>
+        <h2 style={{ margin: 0 }}>Step 3 · Mark each voter – {current}</h2>
+        <button className="link-btn" onClick={onManage}>
+          Need to move a voter to another group? Manage voters →
+        </button>
+      </div>
       <div className="row">
         <div>
           <label htmlFor="q">Search name, relative, EPIC or house no.</label>
@@ -122,20 +127,18 @@ export default function VoterTable({ state, onMark, onMoveRequest }) {
               <th>House</th>
               <SortHeader label="Age / Gender" col="age" {...headerProps} />
               <SortHeader label="Will vote for" col="vote" {...headerProps} />
-              <th>Move to group</th>
             </tr>
           </thead>
           <tbody id="tbody">
             {rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="sub">
+                <td colSpan={6} className="sub">
                   No voters match.
                 </td>
               </tr>
             )}
             {rows.map(({ v, n }) => {
               const m = marks[v.epicNo] || ''
-              const g = groupOf(v, moves)
               const color = m ? colorOf(m) : null
               return (
                 <tr key={v.epicNo} className={m ? 'marked' : ''} style={color ? { '--cand': color } : undefined}>
@@ -180,15 +183,6 @@ export default function VoterTable({ state, onMark, onMoveRequest }) {
                       ) : (
                         <option value="">Add candidates first</option>
                       )}
-                    </select>
-                  </td>
-                  <td>
-                    <select className="mv" value={g} onChange={(e) => onMoveRequest(v, e.target.value)}>
-                      {GROUPS.map((x) => (
-                        <option key={x} value={x}>
-                          {x === g ? `Stay in ${x}` : x}
-                        </option>
-                      ))}
                     </select>
                   </td>
                 </tr>

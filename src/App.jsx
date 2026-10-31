@@ -5,10 +5,10 @@ import { useDialogs } from './components/Dialogs'
 import FinalResult from './components/FinalResult'
 import GroupPicker from './components/GroupPicker'
 import GroupResult from './components/GroupResult'
-import MovedVoters from './components/MovedVoters'
+import ManageVoters from './components/ManageVoters'
 import VoterTable from './components/VoterTable'
 import { GROUPS, ROLL, VOTERS } from './lib/constants'
-import { groupOf, votersInGroup } from './lib/tally'
+import { votersInGroup } from './lib/tally'
 import { useTracker } from './lib/useTracker'
 
 const scrollTo = (ref) => setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth' }), 50)
@@ -16,7 +16,8 @@ const scrollTo = (ref) => setTimeout(() => ref.current?.scrollIntoView({ behavio
 export default function App() {
   const t = useTracker()
   const { state } = t
-  const { ask, tell, toast } = useDialogs()
+  const { ask, tell } = useDialogs()
+  const [view, setView] = useState('track') // 'track' | 'manage'
 
   // Which result panels are open. Group result shows for the current group once submitted.
   const [showGroupResult, setShowGroupResult] = useState(() => !!state.submitted[state.current])
@@ -70,39 +71,9 @@ export default function App() {
     scrollTo(finalRef)
   }
 
-  const requestMove = async (voter, to) => {
-    const from = groupOf(voter, state.moves)
-    if (to === from) return
-    const ok = await ask({
-      title: 'Move voter?',
-      body: `Move ${voter.name} (Roll ${voter.serialNo}) from ${from} to ${to}?`,
-      yes: 'Move',
-    })
-    if (!ok) return
-    t.moveVoter(voter.epicNo, to)
-    toast(`${voter.name} moved to ${to}.`, () => {
-      t.moveVoter(voter.epicNo, from)
-      toast(`Move undone. ${voter.name} is back in ${from}.`)
-    })
-  }
-
-  const revertOne = async (voter) => {
-    const ok = await ask({ title: 'Revert move?', body: `Send ${voter.name} back to ${voter.homeGroup}?`, yes: 'Revert' })
-    if (!ok) return
-    t.moveVoter(voter.epicNo, voter.homeGroup)
-    toast(`${voter.name} is back in ${voter.homeGroup}.`)
-  }
-
-  const revertAll = async () => {
-    const n = Object.keys(state.moves).length
-    const ok = await ask({
-      title: 'Revert all moves?',
-      body: `Send all ${n} moved voter(s) back to their original groups?`,
-      yes: 'Revert all',
-    })
-    if (!ok) return
-    t.revertAllMoves()
-    toast('All moves reverted.')
+  const goTo = (v) => {
+    setView(v)
+    window.scrollTo({ top: 0 })
   }
 
   return (
@@ -115,6 +86,22 @@ export default function App() {
         </p>
       </header>
 
+      <nav className="tabs" role="tablist">
+        <button role="tab" id="tabTrack" aria-selected={view === 'track'} className={view === 'track' ? 'active' : ''} onClick={() => goTo('track')}>
+          Vote tracker
+        </button>
+        <button role="tab" id="tabManage" aria-selected={view === 'manage'} className={view === 'manage' ? 'active' : ''} onClick={() => goTo('manage')}>
+          Manage voters
+          {Object.keys(state.moves).length > 0 && <span className="tab-count">{Object.keys(state.moves).length} moved</span>}
+        </button>
+      </nav>
+
+      {view === 'manage' ? (
+        <main>
+          <ManageVoters state={state} moveVoters={t.moveVoters} revertAllMoves={t.revertAllMoves} />
+        </main>
+      ) : (
+      <>
       <main>
         <CandidateSetup
           candidates={state.candidates}
@@ -141,12 +128,11 @@ export default function App() {
         )}
 
         <div ref={voterRef}>
-          <VoterTable state={state} onMark={t.markVoter} onMoveRequest={requestMove} />
+          <VoterTable state={state} onMark={t.markVoter} onManage={() => goTo('manage')} />
         </div>
 
         {showFinal && allDone && <FinalResult ref={finalRef} state={state} />}
 
-        <MovedVoters moves={state.moves} onRevert={revertOne} onRevertAll={revertAll} />
         <DataTools exportData={t.exportData} importData={t.importData} clearMarks={t.clearMarks} />
       </main>
 
@@ -170,6 +156,8 @@ export default function App() {
           )}
         </div>
       </div>
+      </>
+      )}
     </>
   )
 }

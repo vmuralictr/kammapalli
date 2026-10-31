@@ -144,17 +144,26 @@ export function useTracker() {
     })
   }, [])
 
-  const moveVoter = useCallback((epicNo, to) => {
+  /** Move several voters at once: pairs = [{ epicNo, to }]. Affected submitted groups become stale. */
+  const moveVoters = useCallback((pairs) => {
     setState((s) => {
-      const voter = VOTERS.find((v) => v.epicNo === epicNo)
-      const from = groupOf(voter, s.moves)
-      if (from === to) return s
       const moves = { ...s.moves }
-      if (to === voter.homeGroup) delete moves[epicNo]
-      else moves[epicNo] = to
-      return { ...s, moves, submitted: staleIfDone(s.submitted, [from, to]) }
+      const touched = new Set()
+      for (const { epicNo, to } of pairs) {
+        const voter = VOTERS.find((v) => v.epicNo === epicNo)
+        const from = groupOf(voter, moves)
+        if (from === to) continue
+        if (to === voter.homeGroup) delete moves[epicNo]
+        else moves[epicNo] = to
+        touched.add(from)
+        touched.add(to)
+      }
+      if (!touched.size) return s
+      return { ...s, moves, submitted: staleIfDone(s.submitted, [...touched]) }
     })
   }, [])
+
+  const moveVoter = useCallback((epicNo, to) => moveVoters([{ epicNo, to }]), [moveVoters])
 
   const revertAllMoves = useCallback(() => {
     setState((s) => {
@@ -211,6 +220,7 @@ export function useTracker() {
     setCurrent,
     markVoter,
     moveVoter,
+    moveVoters,
     revertAllMoves,
     submitGroup,
     clearMarks,
